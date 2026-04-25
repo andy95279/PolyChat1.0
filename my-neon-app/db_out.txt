@@ -1,0 +1,102 @@
+=== SCHEMAS ===
+public, auth, information_schema, pg_catalog, pg_toast, pgrst, neon_auth
+
+=== TABLES IN public ===
+usuarios, chat, mensajes, chat_miembro, contactos
+
+=== TABLES IN neon_auth ===
+invitation, user, session, organization, account, verification, jwks, member, project_config
+
+=== COLUMNS IN neon_auth.invitation ===
+id: uuid
+organizationId: uuid
+email: text
+role: text
+status: text
+expiresAt: timestamp with time zone
+createdAt: timestamp with time zone
+inviterId: uuid
+
+=== COLUMNS IN neon_auth.user ===
+id: uuid
+name: text
+email: text
+emailVerified: boolean
+image: text
+createdAt: timestamp with time zone
+updatedAt: timestamp with time zone
+role: text
+banned: boolean
+banReason: text
+banExpires: timestamp with time zone
+
+=== COLUMNS IN neon_auth.session ===
+id: uuid
+expiresAt: timestamp with time zone
+token: text
+createdAt: timestamp with time zone
+updatedAt: timestamp with time zone
+ipAddress: text
+userAgent: text
+userId: uuid
+impersonatedBy: text
+activeOrganizationId: text
+
+=== COLUMNS IN neon_auth.organization ===
+id: uuid
+name: text
+slug: text
+logo: text
+createdAt: timestamp with time zone
+metadata: text
+
+=== COLUMNS IN neon_auth.account ===
+id: uuid
+accountId: text
+providerId: text
+userId: uuid
+accessToken: text
+refreshToken: text
+idToken: text
+accessTokenExpiresAt: timestamp with time zone
+refreshTokenExpiresAt: timestamp with time zone
+scope: text
+password: text
+createdAt: timestamp with time zone
+updatedAt: timestamp with time zone
+
+=== COLUMNS IN neon_auth.verification ===
+id: uuid
+identifier: text
+value: text
+expiresAt: timestamp with time zone
+createdAt: timestamp with time zone
+updatedAt: timestamp with time zone
+
+=== COLUMNS IN neon_auth.jwks ===
+id: uuid
+publicKey: text
+privateKey: text
+createdAt: timestamp with time zone
+expiresAt: timestamp with time zone
+
+=== COLUMNS IN neon_auth.member ===
+id: uuid
+organizationId: uuid
+userId: uuid
+role: text
+createdAt: timestamp with time zone
+
+=== COLUMNS IN neon_auth.project_config ===
+id: uuid
+name: text
+endpoint_id: text
+created_at: timestamp with time zone
+updated_at: timestamp with time zone
+trusted_origins: jsonb
+social_providers: jsonb
+email_provider: jsonb
+email_and_password: jsonb
+allow_localhost: boolean
+plugin_configs: jsonb
+webhook_config: jsonb

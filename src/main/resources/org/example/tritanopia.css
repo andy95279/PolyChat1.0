@@ -1,0 +1,15 @@
+/* Tritanopia scheme (Blue-Yellow blindness) */
+/* Replaces difficult colors with cyan and red/pink */
+.root {
+    -color-success-emphasis: #CC79A7; /* Reddish Purple */
+    -color-success-muted: rgba(204, 121, 167, 0.4);
+    -color-success-fg: #CC79A7;
+
+    -color-danger-emphasis: #D55E00; /* Vermilion */
+    -color-danger-muted: rgba(213, 94, 0, 0.4);
+    -color-danger-fg: #D55E00;
+
+    -color-accent-emphasis: #009E73; /* Bluish Green / Cyan */
+    -color-accent-muted: rgba(0, 158, 115, 0.4);
+    -color-accent-fg: #009E73;
+}

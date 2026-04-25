@@ -1,0 +1,15 @@
+/* Protanopia / Deuteranopia scheme (Red-Green blindness) */
+/* Replaces green (success) with blue, and red (danger) with vermilion/orange */
+.root {
+    -color-success-emphasis: #0072B2; /* Blue */
+    -color-success-muted: rgba(0, 114, 178, 0.4);
+    -color-success-fg: #0072B2;
+
+    -color-danger-emphasis: #D55E00; /* Vermilion */
+    -color-danger-muted: rgba(213, 94, 0, 0.4);
+    -color-danger-fg: #D55E00;
+
+    -color-accent-emphasis: #E69F00; /* Orange */
+    -color-accent-muted: rgba(230, 159, 0, 0.4);
+    -color-accent-fg: #E69F00;
+}
