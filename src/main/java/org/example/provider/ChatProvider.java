@@ -28,8 +28,15 @@ public class ChatProvider {
     }
 
     public static String languageNameToCode(String languageName) {
-        if (languageName == null) return "ES";
-        switch (languageName.trim().toUpperCase()) {
+        if (languageName == null || languageName.trim().isEmpty()) return "ES";
+        
+        String langTrimmed = languageName.trim();
+        // Check for formats like "en English" or "fr Français"
+        if (langTrimmed.length() > 2 && langTrimmed.charAt(2) == ' ') {
+            return langTrimmed.substring(0, 2).toUpperCase();
+        }
+
+        switch (langTrimmed.toUpperCase()) {
             case "ESPAÑOL": case "SPANISH": return "ES";
             case "INGLÉS": case "INGLES": case "ENGLISH": return "EN";
             case "FRANCÉS": case "FRANCES": case "FRENCH": return "FR";
@@ -37,7 +44,7 @@ public class ChatProvider {
             case "ITALIANO": case "ITALIAN": return "IT";
             case "PORTUGUÉS": case "PORTUGUES": case "PORTUGUESE": return "PT";
             default: 
-                if (languageName.length() == 2) return languageName.toUpperCase();
+                if (langTrimmed.length() == 2) return langTrimmed.toUpperCase();
                 return "ES";
         }
     }
