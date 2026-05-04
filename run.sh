@@ -5,15 +5,13 @@
 
 echo "Iniciando my-neon-app (React)..."
 cd my-neon-app
-# Instalamos dependencias por si es la primera vez que se descarga
-npm install
 npm run dev &
 REACT_PID=$!
 cd ..
 
 echo "Iniciando PolyChat Desktop (JavaFX)..."
-# Usamos el wrapper de Maven incluido en el proyecto
-./mvnw clean javafx:run
+export JAVA_HOME="C:\Users\Albert\.jdks\corretto-18.0.2"
+"C:\Program Files\JetBrains\IntelliJ IDEA Community Edition 2025.2.1\plugins\maven\lib\maven3\bin\mvn.cmd" clean javafx:run
 
 echo "Cerrando servicios en segundo plano..."
 kill $REACT_PID
