@@ -11,7 +11,7 @@ cd ..
 
 echo "Iniciando PolyChat Desktop (JavaFX)..."
 export JAVA_HOME="C:\Users\Albert\.jdks\corretto-18.0.2"
-"C:\Program Files\JetBrains\IntelliJ IDEA Community Edition 2025.2.1\plugins\maven\lib\maven3\bin\mvn.cmd" clean javafx:run
+./mvnw clean javafx:run
 
 echo "Cerrando servicios en segundo plano..."
 kill $REACT_PID

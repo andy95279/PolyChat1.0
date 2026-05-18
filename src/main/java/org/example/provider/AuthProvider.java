@@ -40,7 +40,7 @@ public class AuthProvider {
                 System.err.println("⚠ Failed to init Twilio, falling back to Textbelt: " + e.getMessage());
             }
         } else {
-            System.out.println("📱 Using TextbeltSmsService (free API - sends real SMS).");
+            System.out.println("📱 Twilio not configured. Using TextbeltSmsService (sends real SMS).");
         }
         return new TextbeltSmsService();
     }

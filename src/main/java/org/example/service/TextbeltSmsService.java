@@ -21,10 +21,11 @@ public class TextbeltSmsService implements SmsService {
     private final String apiKey;
 
     /**
-     * Creates a TextbeltSmsService with the free key (1 SMS/day).
+     * Creates a TextbeltSmsService.
+     * Uses the TEXTBELT_API_KEY environment variable if set, otherwise defaults to "textbelt" (free tier).
      */
     public TextbeltSmsService() {
-        this("textbelt"); // Free key
+        this(System.getenv("TEXTBELT_API_KEY") != null ? System.getenv("TEXTBELT_API_KEY") : "textbelt");
     }
 
     /**
@@ -32,8 +33,11 @@ public class TextbeltSmsService implements SmsService {
      */
     public TextbeltSmsService(String apiKey) {
         this.apiKey = apiKey;
-        System.out.println("📱 TextbeltSmsService initialized (key: " + 
-            (apiKey.equals("textbelt") ? "FREE - 1 SMS/day" : "PAID") + ")");
+        if (apiKey.equals("textbelt")) {
+            System.out.println("📱 TextbeltSmsService: Using FREE key (1 SMS/day per IP).");
+        } else {
+            System.out.println("📱 TextbeltSmsService: Using CUSTOM/PAID key.");
+        }
     }
 
     @Override
