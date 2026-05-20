@@ -239,30 +239,42 @@ async function handleGetContacts(res, userId) {
   sendJson(res, contacts);
 }
 
-// GET /api/stories — stories built from recent user activity
+// GET /api/stories — stories from Neon Database
 async function handleGetStories(res, userId) {
-  // Generate stories from users who have recent messages (simulating real stories)
-  const { rows: allUsers } = await pool.query('SELECT * FROM usuarios ORDER BY ultima_conexion DESC');
-  const stories = allUsers
-    .filter(u => u.id_usuario !== userId)
-    .map((u, i) => {
-      const storyTexts = [
-        `Conectado desde ${u.nacionalidad} 🌍`,
-        `Último mensaje reciente 💬`,
-        `Activo en PolyChat 🚀`
-      ];
-      return {
-        id: String(i + 1),
-        userId: u.id_usuario,
-        userName: u.nombre,
-        avatar: makeAvatar(u.nombre, u.apellidos),
-        color: USER_COLORS[i % USER_COLORS.length],
-        content: storyTexts[i % storyTexts.length],
-        imageUrl: null
-      };
-    });
-
-  sendJson(res, stories);
+  if (!userId) { sendJson(res, [], 400); return; }
+  try {
+    const sql = `
+      SELECT DISTINCT h.id_historia, h.id_usuario, u.nombre, u.apellidos, h.contenido, h.imagen_url, h.fecha_creacion
+      FROM public.historias h
+      JOIN public.usuarios u ON h.id_usuario = u.id_usuario
+      WHERE h.fecha_creacion > NOW() - INTERVAL '24 hours'
+      AND (
+        h.id_usuario = $1::uuid
+        OR (
+          h.id_usuario IN (SELECT id_contacto FROM public.contactos WHERE id_usuario = $1::uuid)
+          AND h.id_usuario NOT IN (SELECT id_bloqueador FROM public.bloqueos WHERE id_bloqueado = $1::uuid)
+          AND h.id_usuario NOT IN (SELECT id_bloqueado FROM public.bloqueos WHERE id_bloqueador = $1::uuid)
+          AND h.id_usuario NOT IN (SELECT id_usuario FROM public.restricciones_historias WHERE id_restringido = $1::uuid)
+        )
+      )
+      ORDER BY h.fecha_creacion DESC
+    `;
+    const { rows } = await pool.query(sql, [userId]);
+    const stories = rows.map((r, i) => ({
+      id: String(r.id_historia),
+      userId: r.id_usuario,
+      userName: (r.nombre + ' ' + (r.apellidos || '')).trim(),
+      avatar: makeAvatar(r.nombre, r.apellidos),
+      color: USER_COLORS[i % USER_COLORS.length],
+      content: r.contenido || '',
+      imageUrl: r.imagen_url || null,
+      timestamp: r.fecha_creacion
+    }));
+    sendJson(res, stories);
+  } catch (err) {
+    console.error('Error fetching stories:', err);
+    sendJson(res, []);
+  }
 }
 
 // GET /api/login?phone=xxx — find user by phone
@@ -310,6 +322,85 @@ function parseQuery(url) {
   return params;
 }
 
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => resolve(body));
+    req.on('error', err => reject(err));
+  });
+}
+
+async function handleCreateStory(res, data) {
+  const { userId, content, imageUrl, imageBase64, imageName } = data;
+  if (!userId || (!content && !imageUrl && !imageBase64)) {
+    sendJson(res, { error: 'Missing userId or content/image' }, 400);
+    return;
+  }
+
+  let finalImageUrl = imageUrl || null;
+
+  if (imageBase64) {
+    try {
+      const uploadsDir = path.join(__dirname, 'uploads');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      const matches = imageBase64.match(/^data:image\/([a-zA-Z0-9\-\.]+);base64,(.+)$/);
+      if (matches && matches.length === 3) {
+        const ext = matches[1];
+        const base64Data = matches[2];
+        const buffer = Buffer.from(base64Data, 'base64');
+        const filename = `story_${Date.now()}_${Math.floor(Math.random() * 1000)}.${ext}`;
+        const savePath = path.join(uploadsDir, filename);
+        fs.writeFileSync(savePath, buffer);
+        finalImageUrl = `http://localhost:${PORT}/uploads/${filename}`;
+      }
+    } catch (err) {
+      console.error('Error saving uploaded story image:', err);
+    }
+  }
+
+  await pool.query(
+    'INSERT INTO public.historias (id_usuario, contenido, imagen_url, fecha_creacion) VALUES ($1::uuid, $2, $3, NOW())',
+    [userId, content || null, finalImageUrl]
+  );
+  sendJson(res, { success: true });
+}
+
+async function handleProxyImage(res, filePathParam) {
+  if (!filePathParam) {
+    sendJson(res, { error: 'No path specified' }, 400);
+    return;
+  }
+  try {
+    let decodedPath = decodeURIComponent(filePathParam);
+    if (decodedPath.startsWith('file:///')) {
+      decodedPath = decodedPath.substring(8);
+    } else if (decodedPath.startsWith('file:/')) {
+      decodedPath = decodedPath.substring(6);
+    }
+    const normalizedPath = path.normalize(decodedPath);
+    if (fs.existsSync(normalizedPath)) {
+      const ext = path.extname(normalizedPath).toLowerCase();
+      const mimeType = MIME[ext] || 'image/jpeg';
+      res.writeHead(200, {
+        'Content-Type': mimeType,
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end(fs.readFileSync(normalizedPath));
+    } else {
+      res.writeHead(404);
+      res.end('File not found');
+    }
+  } catch (err) {
+    console.error('Error proxying image:', err);
+    res.writeHead(500);
+    res.end('Error proxying image');
+  }
+}
+
 // ===================== SERVER =====================
 const server = http.createServer(async (req, res) => {
   const urlPath = req.url.split('?')[0];
@@ -341,11 +432,22 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (urlPath === '/api/stories') {
-      await handleGetStories(res, query.userId);
-      return;
+      if (req.method === 'POST') {
+        const bodyText = await readBody(req);
+        const data = JSON.parse(bodyText);
+        await handleCreateStory(res, data);
+        return;
+      } else {
+        await handleGetStories(res, query.userId);
+        return;
+      }
     }
     if (urlPath === '/api/login') {
       await handleLogin(res, query.phone);
+      return;
+    }
+    if (urlPath === '/api/proxy-image') {
+      await handleProxyImage(res, query.path);
       return;
     }
   } catch (err) {

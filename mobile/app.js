@@ -89,7 +89,7 @@ function renderHome(){
       <button class="icon-btn" onclick="navigate('settings')">⚙️</button>
     </div>
     ${hasChats?`<div class="stories-section">
-      <div class="story-cell" onclick="toast('📷 Seleccionar foto para tu historia')">
+      <div class="story-cell" onclick="openNewStoryModal()">
         <div class="story-avatar empty"><span>Me</span><span class="add-badge">+</span></div>
         <div class="story-name">Tu historia</div>
       </div>
@@ -354,15 +354,126 @@ function toggleOriginal(chatId,msgId){const key=chatId+'_'+msgId;state.showOrigi
 function toggleMic(){const btn=document.getElementById('micBtn');if(!btn)return;if(btn.classList.contains('recording')){btn.classList.remove('recording');btn.textContent='🎤';toast('✅ Nota de voz enviada')}else{btn.classList.add('recording');btn.textContent='⏹';toast('🎤 Grabando...')}}
 function showStory(id){
   const s=MOCK_STORIES.find(x=>x.id===id);if(!s)return;
+  let imgSrc = s.imageUrl;
+  if (imgSrc && (imgSrc.startsWith('file:/') || imgSrc.startsWith('file:///'))) {
+    imgSrc = `/api/proxy-image?path=${encodeURIComponent(imgSrc)}`;
+  }
   const overlay=document.createElement('div');overlay.className='story-overlay';
   overlay.innerHTML=`<div class="story-progress"><div class="story-progress-fill" id="storyFill"></div></div>
     <div class="story-header"><div class="story-header-avatar" style="background:${s.color}">${s.avatar}</div>
       <div class="story-header-name">${s.userName}</div>
       <button class="story-close" onclick="this.closest('.story-overlay').remove()">✕</button></div>
-    <div class="story-body"><div class="story-body-text">${s.content}</div></div>`;
+    <div class="story-body" style="display:flex; flex-direction:column; gap:16px;">
+      ${imgSrc ? `<img src="${imgSrc}" style="max-width:100%; max-height:70vh; border-radius:var(--radius); object-fit:contain;">` : ''}
+      ${s.content ? `<div class="story-body-text">${s.content}</div>` : ''}
+    </div>`;
   document.body.appendChild(overlay);
   requestAnimationFrame(()=>{const fill=document.getElementById('storyFill');if(fill)fill.style.width='100%'});
   setTimeout(()=>{if(document.body.contains(overlay))overlay.remove()},5500);
+}
+
+function handleFileSelected(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const label = document.getElementById('fileUploadLabel');
+  const reader = new FileReader();
+  reader.readAsDataURL(file);
+  reader.onload = () => {
+    label.innerHTML = `<img src="${reader.result}" style="max-height: 120px; max-width: 100%; border-radius: var(--radius); margin-top: 4px; object-fit: contain; box-shadow: 0 4px 12px rgba(0,0,0,0.5); border: 1px solid var(--border);"><br><span style="color:var(--green); font-size:12px; font-weight:600; margin-top: 8px; display:inline-block;">✓ ${file.name}</span>`;
+  };
+}
+
+function openNewStoryModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'story-overlay';
+  overlay.style.justifyContent = 'center';
+  overlay.style.alignItems = 'center';
+  overlay.style.background = 'rgba(13, 17, 23, 0.95)';
+  overlay.style.display = 'flex';
+  
+  overlay.innerHTML = `
+    <div class="login-card" style="width: 90%; max-width: 380px; position: relative; padding: 24px;">
+      <button class="story-close" onclick="this.closest('.story-overlay').remove()" style="position: absolute; top: 12px; right: 12px; background: none; border: none; font-size: 20px; color: var(--fg-muted); cursor: pointer;">✕</button>
+      <div class="logo-circle" style="font-size: 28px; background: rgba(59, 130, 246, 0.15); color: var(--blue);">📷</div>
+      <div class="login-title" style="font-size: 20px; margin-top: 10px;">Subir Nueva Historia</div>
+      <div class="login-subtitle">Comparte una foto directamente con tus amigos</div>
+      
+      <div class="form-group" style="margin-top: 15px; width: 100%;">
+        <div class="form-label">🖼️ Foto de la Historia</div>
+        <div class="file-upload-zone" onclick="document.getElementById('storyFileInput').click()" style="border: 2px dashed var(--border); border-radius: var(--radius); padding: 24px 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.015); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+          <div style="font-size: 32px;">📁</div>
+          <div style="font-size: 13px; color: var(--fg-muted); font-weight: 500;" id="fileUploadLabel">Haz clic para seleccionar una foto</div>
+          <input type="file" id="storyFileInput" accept="image/*" style="display: none;" onchange="handleFileSelected(event)">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top: 15px; width: 100%;">
+        <div class="form-label">✍️ Pie de Foto / Comentario (Opcional)</div>
+        <textarea class="form-input" id="storyContentInput" placeholder="Escribe un comentario para acompañar tu historia..." style="resize: none; height: 60px; font-family: var(--font); padding: 8px 12px;"></textarea>
+      </div>
+      
+      <div class="error-msg" id="storyUploadError" style="margin-top: 10px;"></div>
+      
+      <button class="btn-primary" onclick="uploadStory()" style="margin-top: 15px; width: 100%;">Publicar Historia 🚀</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+async function uploadStory() {
+  const content = document.getElementById('storyContentInput').value.trim();
+  const fileInput = document.getElementById('storyFileInput');
+  const file = fileInput ? fileInput.files[0] : null;
+  const errEl = document.getElementById('storyUploadError');
+  
+  if (!content && !file) {
+    if (errEl) errEl.textContent = '⚠ Selecciona una foto para subir o escribe algo';
+    return;
+  }
+  
+  if (errEl) errEl.textContent = '🔄 Publicando historia...';
+  
+  try {
+    let imageBase64 = null;
+    let imageName = null;
+    
+    if (file) {
+      imageName = file.name;
+      const readDataUrl = (f) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (e) => reject(e);
+        reader.readAsDataURL(f);
+      });
+      imageBase64 = await readDataUrl(file);
+    }
+    
+    const response = await fetch('/api/stories', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId: state.currentUser.id,
+        content: content || null,
+        imageBase64: imageBase64,
+        imageName: imageName
+      })
+    });
+    
+    if (!response.ok) throw new Error('Error al publicar historia');
+    
+    const overlay = document.querySelector('.story-overlay');
+    if (overlay) overlay.remove();
+    
+    toast('✓ ¡Historia publicada con éxito!');
+    await loadStories(state.currentUser.id);
+    render();
+    
+  } catch (err) {
+    console.error(err);
+    if (errEl) errEl.textContent = '⚠ Error al conectar con el servidor';
+  }
 }
 function acceptRequest(id){MOCK_REQUESTS.splice(MOCK_REQUESTS.findIndex(r=>r.id===id),1);toast('✓ Solicitud aceptada');render()}
 function rejectRequest(id){MOCK_REQUESTS.splice(MOCK_REQUESTS.findIndex(r=>r.id===id),1);toast('Solicitud rechazada');render()}
